@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sinalização Digital — Farmácia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --branco: #ffffff;
+    --azul: #0b4da1;
+    --azul-escuro: #062f66;
+    --vermelho: #e01b30;
+    --texto: #10203a;
+    --cinza: #eef2f7;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{
+    width:100%; height:100%;
+    background:#000;
+    overflow:hidden;
+    font-family:'Inter', sans-serif;
+  }
+
+  #stage{
+    position:relative;
+    width:100vw; height:100vh;
+    background: var(--branco);
+  }
+
+  /* player de áudio de fundo: fica atrás de tudo, sempre presente no DOM
+     (nunca display:none) pra não ser suspenso pelo navegador. Alguns
+     navegadores de Smart TV desenham vídeo embutido numa camada de
+     hardware que ignora "opacity", então em vez de tentar esconder com
+     transparência, o player fica encolhido a um tamanho minúsculo, num
+     canto — mesmo se aparecer por cima de tudo, é um pontinho imperceptível. */
+  #audio-player-container{
+    position:absolute;
+    top:0; left:0;
+    width:2px; height:2px;
+    overflow:hidden;
+    opacity:0;
+    pointer-events:none;
+    z-index:0;
+  }
+
+  #media-container{
+    position:absolute; inset:0;
+    z-index:1;
+    display:flex; align-items:center; justify-content:center;
+    background:#000;
+  }
+  #media-container img,
+  #media-container video{
+    width:100%; height:100%;
+    object-fit: cover;
+    display:block;
+  }
+
+  #progress-track{
+    position:absolute; top:0; left:0; right:0;
+    height:6px;
+    background: rgba(255,255,255,0.25);
+    z-index:5;
+  }
+  #progress-fill{
+    height:100%;
+    width:0%;
+    background: linear-gradient(90deg, var(--vermelho), var(--azul));
+    transition: width linear;
+  }
+
+  #brand-tag{
+    position:absolute; left:28px; bottom:26px;
+    display:flex; align-items:center; gap:10px;
+    padding:10px 18px 10px 14px;
+    background: rgba(6,47,102,0.82);
+    backdrop-filter: blur(6px);
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,0.15);
+    z-index:5;
+  }
+  #brand-tag .cross{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:26px; height:26px;
+    background: var(--vermelho);
+    color:#fff;
+    border-radius:8px;
+    font-size:16px; font-weight:800;
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  #brand-tag span.label{
+    font-family:'Poppins', sans-serif;
+    font-weight:700;
+    letter-spacing:0.06em;
+    color:#fff;
+    font-size:15px;
+    text-transform:uppercase;
+  }
+  @keyframes pulse{
+    0%,100%{ transform:scale(1); }
+    50%{ transform:scale(1.12); }
+  }
+
+  #clock{
+    position:absolute; top:22px; right:28px;
+    font-family:'Poppins', sans-serif;
+    font-weight:700;
+    font-size:22px;
+    color:#fff;
+    background: rgba(6,47,102,0.6);
+    padding:8px 16px;
+    border-radius:10px;
+    backdrop-filter: blur(6px);
+    z-index:5;
+    letter-spacing:0.03em;
+  }
+
+  #conn-dot{
+    position:absolute; top:26px; left:28px;
+    width:12px; height:12px;
+    border-radius:50%;
+    background:#8a9bb5;
+    z-index:5;
+    box-shadow:0 0 0 3px rgba(255,255,255,0.15);
+  }
+  #conn-dot.online{ background:#20c76b; }
+  #conn-dot.offline{ background:#e01b30; }
+
+  /* ícone discreto indicando que o áudio de fundo está ligado */
+  #audio-indicator{
+    position:absolute; top:26px; left:50px;
+    display:none;
+    align-items:center; gap:6px;
+    background: rgba(6,47,102,0.6);
+    color:#fff;
+    font-size:12px; font-weight:600;
+    padding:6px 12px;
+    border-radius:999px;
+    z-index:5;
+    backdrop-filter: blur(6px);
+  }
+  #audio-indicator.on{ display:flex; }
+
+  #empty-state{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    background: var(--branco);
+    z-index:10;
+  }
+  #empty-state.hidden{ display:none; }
+  .card{
+    max-width:640px;
+    text-align:left;
+    padding:48px;
+  }
+  .card .cross-big{
+    width:56px; height:56px;
+    background:var(--vermelho);
+    color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:14px;
+    font-size:32px; font-weight:800;
+    margin-bottom:24px;
+  }
+  .card h1{
+    font-family:'Poppins', sans-serif;
+    font-size:28px;
+    color:var(--azul-escuro);
+    margin-bottom:12px;
+  }
+  .card p{
+    color:var(--texto);
+    font-size:16px;
+    line-height:1.6;
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div id="audio-player-container"><div id="audio-player"></div></div>
+  <div id="media-container"></div>
+  <div id="progress-track"><div id="progress-fill"></div></div>
+  <div id="brand-tag"><span class="cross">✚</span><span class="label">Ofertas da semana</span></div>
+  <div id="audio-indicator">🎵 Música ligada</div>
+  <div id="clock">--:--</div>
+  <div id="conn-dot"></div>
+
+  <div id="empty-state">
+    <div class="card">
+      <div class="cross-big">✚</div>
+      <h1>Nenhuma oferta cadastrada ainda</h1>
+      <p>Abra o painel de controle em outro dispositivo na mesma rede (<strong>http://SEU-IP:4173/admin.html</strong>) e adicione fotos ou vídeos de ofertas por lá. Eles aparecem aqui automaticamente.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const container = document.getElementById('media-container');
+  const progressFill = document.getElementById('progress-fill');
+  const progressTrack = document.getElementById('progress-track');
+  const brandTag = document.getElementById('brand-tag');
+  const emptyState = document.getElementById('empty-state');
+  const clockEl = document.getElementById('clock');
+  const connDot = document.getElementById('conn-dot');
+  const audioIndicator = document.getElementById('audio-indicator');
+
+  let state = { playlist: [], audio: { enabled: false, youtubePlaylistId: '' } };
+  let index = 0;
+  let currentTimer = null;
+
+  // ==================== Relógio ====================
+  function updateClock(){
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2,'0');
+    const mm = String(now.getMinutes()).padStart(2,'0');
+    clockEl.textContent = `${hh}:${mm}`;
+  }
+  updateClock();
+  setInterval(updateClock, 1000 * 15);
+
+  // ==================== Progresso ====================
+  function runProgress(durationMs){
+    progressFill.style.transition = 'none';
+    progressFill.style.width = '0%';
+    void progressFill.offsetWidth;
+    progressFill.style.transition = `width ${durationMs}ms linear`;
+    progressFill.style.width = '100%';
+  }
+
+  // ==================== Ofertas (fotos/vídeos) — sempre tocando ====================
+  function showEmptyIfNeeded(){
+    const isEmpty = state.playlist.length === 0;
+    emptyState.classList.toggle('hidden', !isEmpty);
+    progressTrack.style.display = isEmpty ? 'none' : 'block';
+    brandTag.style.display = isEmpty ? 'none' : 'flex';
+    return isEmpty;
+  }
+
+  function showItem(i){
+    if (currentTimer) { clearTimeout(currentTimer); currentTimer = null; }
+    if (!state.playlist.length) { showEmptyIfNeeded(); return; }
+
+    index = ((i % state.playlist.length) + state.playlist.length) % state.playlist.length;
+    const item = state.playlist[index];
+    container.innerHTML = '';
+
+    if (item.type === 'video'){
+      const video = document.createElement('video');
+      video.src = `/media/${item.filename}`;
+      video.autoplay = true;
+      video.muted = true; // vídeos de oferta continuam mudos por padrão; o som vem do player de áudio
+      video.playsInline = true;
+      video.addEventListener('loadedmetadata', () => runProgress(video.duration * 1000));
+      video.addEventListener('ended', () => showItem(index + 1));
+      video.addEventListener('error', () => { currentTimer = setTimeout(() => showItem(index + 1), 1500); });
+      container.appendChild(video);
+    } else {
+      const img = document.createElement('img');
+      img.src = `/media/${item.filename}`;
+      const duration = item.duration || 8000;
+      img.addEventListener('load', () => {
+        runProgress(duration);
+        currentTimer = setTimeout(() => showItem(index + 1), duration);
+      });
+      img.addEventListener('error', () => { currentTimer = setTimeout(() => showItem(index + 1), 1500); });
+      container.appendChild(img);
+    }
+  }
+
+  // ==================== Áudio de fundo (YouTube) ====================
+  let ytPlayer = null;
+  let ytApiReady = false;
+  let pendingAudioState = null;
+
+  const ytTag = document.createElement('script');
+  ytTag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(ytTag);
+
+  window.onYouTubeIframeAPIReady = function(){
+    ytApiReady = true;
+    if (pendingAudioState) applyAudioState(pendingAudioState);
+  };
+
+  function createYtPlayer(playlistId){
+    ytPlayer = new YT.Player('audio-player', {
+      height: '2',
+      width: '2',
+      playerVars: {
+        listType: 'playlist',
+        list: playlistId,
+        autoplay: 1,
+        mute: 0,
+        controls: 0,
+        playsinline: 1,
+        fs: 0,
+        disablekb: 1,
+      },
+      events: {
+        onReady: (e) => { try { e.target.playVideo(); } catch(err){} },
+        onError: (e) => {
+          // 101/150 = incorporação bloqueada pelo dono do vídeo, 100 = vídeo removido/privado.
+          // Em vez de travar, pula pra próxima faixa da playlist automaticamente.
+          console.warn('Faixa indisponível para incorporação, pulando para a próxima. Código:', e.data);
+          try { e.target.nextVideo(); } catch(err){}
+        },
+      },
+    });
+  }
+
+  function applyAudioState(audio){
+    if (!ytApiReady){ pendingAudioState = audio; return; }
+
+    if (!audio.enabled || !audio.youtubePlaylistId){
+      audioIndicator.classList.remove('on');
+      if (ytPlayer && ytPlayer.stopVideo){
+        try { ytPlayer.stopVideo(); } catch(e){}
+      }
+      return;
+    }
+
+    audioIndicator.classList.add('on');
+
+    if (!ytPlayer){
+      createYtPlayer(audio.youtubePlaylistId);
+      return;
+    }
+
+    // já existe player: só troca a playlist se ela mudou
+    if (ytPlayer.getPlaylistId && ytPlayer.getPlaylistId() !== audio.youtubePlaylistId){
+      try { ytPlayer.loadPlaylist({ listType: 'playlist', list: audio.youtubePlaylistId }); } catch(e){}
+    } else if (ytPlayer.getPlayerState && ytPlayer.getPlayerState() !== 1){
+      try { ytPlayer.playVideo(); } catch(e){}
+    }
+  }
+
+  function handleAudioSkip(direction){
+    if (!ytPlayer) return;
+    try {
+      if (direction === 'next' && ytPlayer.nextVideo) ytPlayer.nextVideo();
+      if (direction === 'prev' && ytPlayer.previousVideo) ytPlayer.previousVideo();
+    } catch(e){}
+  }
+
+  // ==================== Aplica o estado recebido do servidor ====================
+  function applyState(newState){
+    const playlistChanged = JSON.stringify(newState.playlist) !== JSON.stringify(state.playlist);
+    state = newState;
+
+    if (playlistChanged){
+      if (showEmptyIfNeeded()) { /* nada tocando */ }
+      else if (index >= state.playlist.length) showItem(0);
+      // se só mudou duração/ordem sem afetar o item atual, deixamos o item em exibição terminar naturalmente
+    } else {
+      showEmptyIfNeeded();
+    }
+
+    applyAudioState(state.audio);
+  }
+
+  // ==================== Conexão em tempo real (WebSocket + fallback) ====================
+  function connectWS(){
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws = new WebSocket(`${proto}://${location.host}/ws`);
+
+    ws.addEventListener('open', () => connDot.className = 'online');
+    ws.addEventListener('close', () => { connDot.className = 'offline'; setTimeout(connectWS, 3000); });
+    ws.addEventListener('error', () => ws.close());
+
+    ws.addEventListener('message', (ev) => {
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch (e) { return; }
+
+      if (msg.type === 'state'){
+        applyState(msg.state);
+      } else if (msg.type === 'jump'){
+        showItem(msg.index);
+      } else if (msg.type === 'audio-skip'){
+        handleAudioSkip(msg.direction);
+      }
+    });
+  }
+
+  // Reconciliação periódica por HTTP, de segurança, caso o WebSocket
+  // fique instável na TV.
+  async function pollFallback(){
+    try {
+      const res = await fetch('/api/state');
+      const fresh = await res.json();
+      const changedCount = fresh.playlist.length !== state.playlist.length;
+      const changedAudio = JSON.stringify(fresh.audio) !== JSON.stringify(state.audio);
+      if (changedCount || changedAudio) applyState(fresh);
+      else state = fresh; // mantém durações/ordem atualizadas silenciosamente
+    } catch (e) { /* ignora falha pontual */ }
+  }
+  setInterval(pollFallback, 8000);
+
+  // ==================== Inicialização ====================
+  (async function init(){
+    try {
+      const res = await fetch('/api/state');
+      const initial = await res.json();
+      state = initial;
+      if (!showEmptyIfNeeded()) showItem(0);
+      applyAudioState(state.audio);
+    } catch (e) {
+      showEmptyIfNeeded();
+    }
+    connectWS();
+  })();
+</script>
+
+</body>
+</html>

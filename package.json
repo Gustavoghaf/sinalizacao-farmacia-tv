@@ -1,0 +1,14 @@
+{
+  "name": "sinalizacao-farmacia",
+  "version": "2.0.0",
+  "description": "Sistema de sinalizacao digital para farmacia, com painel de controle e modo YouTube",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "multer": "^2.0.0",
+    "ws": "^8.18.0"
+  }
+}
