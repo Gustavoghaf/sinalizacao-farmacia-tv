@@ -42,20 +42,37 @@ Sistema com painel de controle para gerenciar as ofertas exibidas na TV, e um mo
 
 - **Adicionar ofertas**: arraste fotos/vídeos para a caixa de upload, ou toque nela para escolher os arquivos. Eles são organizados automaticamente na pasta `media/` do projeto.
 - **Reordenar**: use as setinhas ▲ ▼ ao lado de cada item.
+- **Prévia**: cada item mostra uma miniatura (thumbnail) da foto ou do primeiro quadro do vídeo, pra facilitar identificar qual é qual.
+- **Renomear**: clique no nome do item (é um campo editável) pra dar um nome mais claro do que o nome do arquivo original — por exemplo "Oferta Dipirona 500mg" em vez de "IMG_2384.jpg". O nome do arquivo original continua visível, pequeno, embaixo, só como referência.
 - **Tempo de exibição**: só se aplica a imagens (vídeos tocam até o fim sozinhos). Edite o número de segundos e ele salva automaticamente.
-- **Exibir agora**: clique no ícone de play ⏵ de um item pra trocar imediatamente o que está na TV.
+- **Exibir/ocultar**: o ícone de olho 👁 tira o item da exibição na TV temporariamente, sem excluir — ele continua na lista, só marcado como oculto (ícone vira 🚫). Clique de novo pra ele voltar a aparecer. Útil pra pausar uma oferta específica sem perder o arquivo.
+- **Exibir agora**: clique no ícone de play ⏵ de um item pra trocar imediatamente o que está na TV — funciona mesmo em itens ocultos, como uma prévia manual (depois ele volta ao ciclo normal dos itens visíveis).
 - **Excluir**: ícone de lixeira 🗑 — remove da playlist e apaga o arquivo.
-- **Música de fundo**: cole o link de uma playlist do YouTube no campo da seção "Música de fundo" e clique em "Salvar e tocar na TV", ou ligue a chavinha depois de já ter uma playlist salva. As ofertas **continuam tocando normalmente na tela** — a música só toca por cima, sem interromper nada. Use "⏮ Anterior" e "Próxima ⏭" para pular faixas a qualquer momento.
+- **Música de fundo**: cole o link de uma playlist do YouTube no campo da seção "Música de fundo" e clique em "Salvar e tocar na TV", ou ligue a chavinha depois de já ter uma playlist salva. As ofertas **continuam tocando normalmente na tela** — a música só toca escondida por cima, sem interromper nada. Use "⏮ Anterior" e "Próxima ⏭" para pular faixas a qualquer momento.
+
+## Telas conectadas (monitorar e controlar cada TV)
+
+O painel tem uma seção "Telas conectadas" que mostra, em tempo real, cada TV que está com a tela de exibição aberta:
+
+- **Nome**: cada TV aparece com um nome (tipo "TV 1"). Toque no ícone ✏️ pra renomear (ex: "TV Balcão", "TV Vitrine") — útil se a farmácia tiver mais de uma tela.
+- **O que está exibindo**: mostra a miniatura e o nome da oferta em exibição naquela TV específica.
+- **Vídeos em tempo real**: pra vídeos, aparece a barra de progresso com o tempo atual e total, atualizando sozinha. Dá pra:
+  - Arrastar a barra pra qualquer ponto do vídeo (como no YouTube).
+  - ⏪ Voltar 10 segundos / ⏩ Avançar 10 segundos.
+  - ⏸ Pausar / ▶ Retomar.
+- **Online/offline**: uma bolinha verde indica que a TV está conectada agora; se ficar cinza, mostra há quanto tempo ela caiu (pode ser a TV desligada, sem rede, ou a aba fechada). TVs desconectadas podem ser removidas da lista com o ícone 🗑.
+
+Isso funciona mesmo com várias TVs ao mesmo tempo — cada uma aparece separada na lista, com seu próprio nome e controle independente.
 
 ## Sobre o som do YouTube
 
-O áudio da playlist sai pela própria TV. Como a TV já está pareada via Bluetooth com a caixa de som da farmácia, o som vai automaticamente para ela — isso é gerenciado pela própria TV, não precisa configurar nada no sistema.
+O áudio da playlist toca escondido na própria TV, por cima das ofertas. Como a TV já está pareada via Bluetooth com a caixa de som da farmácia, o som vai automaticamente para ela — isso é gerenciado pela própria TV, não precisa configurar nada no sistema.
 
 **Importante — vídeos "indisponíveis":** alguns vídeos do YouTube têm a incorporação em outros sites bloqueada pelo próprio dono (comum em clipes oficiais/Vevo). Quando isso acontece, aparece "vídeo não disponível" e o sistema pula automaticamente para a próxima faixa da playlist, sem travar. Playlists de "áudio oficial", lyric videos ou compilações costumam ter menos bloqueios que clipes oficiais — se muitas faixas de uma playlist estiverem sendo puladas, vale tentar uma playlist diferente.
 
 **Se a música não começar a tocar sozinha:** alguns navegadores só liberam áudio com som depois de uma primeira interação na própria tela (um toque na tela da TV, ou um clique com o controle/mouse, se houver). Isso costuma ser necessário só uma vez por sessão — depois de interagir uma vez, deve continuar funcionando normalmente enquanto a página não for recarregada.
 
-**Alternativa mais simples e robusta:** se o YouTube der muito trabalho (anúncios, vídeos bloqueados, política de autoplay), uma opção mais direta é comprar um adaptador Bluetooth USB para o PC (custa pouco, geralmente entre R$20 e R$40). Assim o próprio computador conecta direto na caixa de som, sem depender da TV nem do YouTube, e dá pra tocar qualquer app de música do PC. Isso resolveria o problema original — liberar o celular — de forma mais simples, caso o modo YouTube não fique satisfatório no dia a dia.
+**Aviso sobre TVs específicas:** algumas Smart TVs desenham vídeo incorporado numa camada de hardware que ignora completamente o CSS da página, fazendo o player de música "tomar conta" da tela por cima das ofertas, mesmo escondido no código. O sistema tenta evitar isso encolhendo o player a um tamanho mínimo e desativando tela cheia/atalhos, mas em algumas TVs mais teimosas isso pode não ser suficiente. Se isso acontecer na sua TV, as alternativas são: um adaptador Bluetooth USB no computador (toca a música do PC direto na caixa de som, sem depender da TV) ou manter o celular como fonte de áudio por enquanto.
 
 ## Formatos aceitos
 

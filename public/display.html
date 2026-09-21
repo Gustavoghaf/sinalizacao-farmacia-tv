@@ -129,7 +129,8 @@
   #conn-dot.online{ background:#20c76b; }
   #conn-dot.offline{ background:#e01b30; }
 
-  /* ícone discreto indicando que o áudio de fundo está ligado */
+  /* aviso visual discreto: apenas informa que a música está tocando em
+     outro dispositivo (o player de áudio roda no PC, não na TV) */
   #audio-indicator{
     position:absolute; top:26px; left:50px;
     display:none;
@@ -185,7 +186,7 @@
   <div id="media-container"></div>
   <div id="progress-track"><div id="progress-fill"></div></div>
   <div id="brand-tag"><span class="cross">✚</span><span class="label">Ofertas da semana</span></div>
-  <div id="audio-indicator">🎵 Música ligada</div>
+  <div id="audio-indicator">🎵 Música ligada (PC)</div>
   <div id="clock">--:--</div>
   <div id="conn-dot"></div>
 
@@ -199,6 +200,10 @@
 </div>
 
 <script>
+  // Esta tela mostra as ofertas (fotos/vídeos) e também toca a música de
+  // fundo do YouTube (escondida, num player minúsculo num canto), quando
+  // ligada pelo painel de controle.
+
   const container = document.getElementById('media-container');
   const progressFill = document.getElementById('progress-fill');
   const progressTrack = document.getElementById('progress-track');
@@ -209,8 +214,22 @@
   const audioIndicator = document.getElementById('audio-indicator');
 
   let state = { playlist: [], audio: { enabled: false, youtubePlaylistId: '' } };
-  let index = 0;
+  let currentId = null;
   let currentTimer = null;
+  let currentVideoEl = null;
+  let currentWs = null;
+
+  // id estável desta tela, salvo no navegador — sobrevive a recarregar a página
+  const DISPLAY_ID_KEY = 'sinalizacao-farmacia:display-id';
+  function getDisplayId(){
+    let id = localStorage.getItem(DISPLAY_ID_KEY);
+    if (!id){
+      id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('display-' + Date.now() + '-' + Math.random().toString(16).slice(2));
+      localStorage.setItem(DISPLAY_ID_KEY, id);
+    }
+    return id;
+  }
+  const displayId = getDisplayId();
 
   // ==================== Relógio ====================
   function updateClock(){
@@ -231,32 +250,51 @@
     progressFill.style.width = '100%';
   }
 
-  // ==================== Ofertas (fotos/vídeos) — sempre tocando ====================
+  // ==================== Ofertas (fotos/vídeos) ====================
+  function getVisiblePlaylist(){
+    return state.playlist.filter((i) => i.enabled !== false);
+  }
+
   function showEmptyIfNeeded(){
-    const isEmpty = state.playlist.length === 0;
+    const isEmpty = getVisiblePlaylist().length === 0;
     emptyState.classList.toggle('hidden', !isEmpty);
     progressTrack.style.display = isEmpty ? 'none' : 'block';
     brandTag.style.display = isEmpty ? 'none' : 'flex';
     return isEmpty;
   }
 
-  function showItem(i){
-    if (currentTimer) { clearTimeout(currentTimer); currentTimer = null; }
-    if (!state.playlist.length) { showEmptyIfNeeded(); return; }
+  // avança para o próximo item visível depois do item com o id informado
+  function showNext(afterId){
+    const visible = getVisiblePlaylist();
+    if (!visible.length) { showEmptyIfNeeded(); return; }
+    const idx = visible.findIndex((i) => i.id === afterId);
+    const nextItem = visible[(idx + 1 + visible.length) % visible.length];
+    showItemObj(nextItem);
+  }
 
-    index = ((i % state.playlist.length) + state.playlist.length) % state.playlist.length;
-    const item = state.playlist[index];
+  // exibe um item específico agora, mesmo que esteja oculto (usado pelo "exibir agora")
+  function showItemObj(item){
+    if (currentTimer) { clearTimeout(currentTimer); currentTimer = null; }
+    currentVideoEl = null;
+    if (!item) { showEmptyIfNeeded(); return; }
+
+    emptyState.classList.add('hidden');
+    progressTrack.style.display = 'block';
+    brandTag.style.display = 'flex';
+
+    currentId = item.id;
     container.innerHTML = '';
 
     if (item.type === 'video'){
       const video = document.createElement('video');
       video.src = `/media/${item.filename}`;
       video.autoplay = true;
-      video.muted = true; // vídeos de oferta continuam mudos por padrão; o som vem do player de áudio
+      video.muted = true;
       video.playsInline = true;
       video.addEventListener('loadedmetadata', () => runProgress(video.duration * 1000));
-      video.addEventListener('ended', () => showItem(index + 1));
-      video.addEventListener('error', () => { currentTimer = setTimeout(() => showItem(index + 1), 1500); });
+      video.addEventListener('ended', () => showNext(currentId));
+      video.addEventListener('error', () => { currentTimer = setTimeout(() => showNext(currentId), 1500); });
+      currentVideoEl = video;
       container.appendChild(video);
     } else {
       const img = document.createElement('img');
@@ -264,11 +302,16 @@
       const duration = item.duration || 8000;
       img.addEventListener('load', () => {
         runProgress(duration);
-        currentTimer = setTimeout(() => showItem(index + 1), duration);
+        currentTimer = setTimeout(() => showNext(currentId), duration);
       });
-      img.addEventListener('error', () => { currentTimer = setTimeout(() => showItem(index + 1), 1500); });
+      img.addEventListener('error', () => { currentTimer = setTimeout(() => showNext(currentId), 1500); });
       container.appendChild(img);
     }
+  }
+
+  function jumpToId(id){
+    const item = state.playlist.find((i) => i.id === id);
+    showItemObj(item);
   }
 
   // ==================== Áudio de fundo (YouTube) ====================
@@ -315,21 +358,17 @@
     if (!ytApiReady){ pendingAudioState = audio; return; }
 
     if (!audio.enabled || !audio.youtubePlaylistId){
-      audioIndicator.classList.remove('on');
       if (ytPlayer && ytPlayer.stopVideo){
         try { ytPlayer.stopVideo(); } catch(e){}
       }
       return;
     }
 
-    audioIndicator.classList.add('on');
-
     if (!ytPlayer){
       createYtPlayer(audio.youtubePlaylistId);
       return;
     }
 
-    // já existe player: só troca a playlist se ela mudou
     if (ytPlayer.getPlaylistId && ytPlayer.getPlaylistId() !== audio.youtubePlaylistId){
       try { ytPlayer.loadPlaylist({ listType: 'playlist', list: audio.youtubePlaylistId }); } catch(e){}
     } else if (ytPlayer.getPlayerState && ytPlayer.getPlayerState() !== 1){
@@ -347,26 +386,59 @@
 
   // ==================== Aplica o estado recebido do servidor ====================
   function applyState(newState){
-    const playlistChanged = JSON.stringify(newState.playlist) !== JSON.stringify(state.playlist);
     state = newState;
 
-    if (playlistChanged){
-      if (showEmptyIfNeeded()) { /* nada tocando */ }
-      else if (index >= state.playlist.length) showItem(0);
-      // se só mudou duração/ordem sem afetar o item atual, deixamos o item em exibição terminar naturalmente
+    const stillExists = state.playlist.some((i) => i.id === currentId);
+    if (!stillExists){
+      // primeira carga (currentId ainda é null) ou o item que estava
+      // tocando foi removido/ocultado: pula pro próximo já
+      showNext(currentId);
     } else {
       showEmptyIfNeeded();
     }
 
+    audioIndicator.classList.toggle('on', !!(state.audio && state.audio.enabled));
     applyAudioState(state.audio);
   }
+
+  // ==================== Status desta tela (pro painel monitorar) ====================
+  function buildStatus(){
+    if (!currentId) return { kind: 'empty' };
+    const item = state.playlist.find((i) => i.id === currentId);
+    if (!item) return { kind: 'empty' };
+
+    if (item.type === 'video' && currentVideoEl){
+      return {
+        kind: 'video',
+        itemId: item.id,
+        filename: item.filename,
+        name: item.name || item.filename,
+        currentTime: currentVideoEl.currentTime || 0,
+        duration: currentVideoEl.duration || 0,
+        paused: currentVideoEl.paused,
+      };
+    }
+    return { kind: item.type, itemId: item.id, filename: item.filename, name: item.name || item.filename };
+  }
+
+  function reportStatus(){
+    if (currentWs && currentWs.readyState === 1){
+      currentWs.send(JSON.stringify({ type: 'display-status', displayId, status: buildStatus() }));
+    }
+  }
+  setInterval(reportStatus, 1000);
 
   // ==================== Conexão em tempo real (WebSocket + fallback) ====================
   function connectWS(){
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const ws = new WebSocket(`${proto}://${location.host}/ws`);
+    currentWs = ws;
 
-    ws.addEventListener('open', () => connDot.className = 'online');
+    ws.addEventListener('open', () => {
+      connDot.className = 'online';
+      ws.send(JSON.stringify({ type: 'register-display', displayId }));
+      reportStatus();
+    });
     ws.addEventListener('close', () => { connDot.className = 'offline'; setTimeout(connectWS, 3000); });
     ws.addEventListener('error', () => ws.close());
 
@@ -377,7 +449,18 @@
       if (msg.type === 'state'){
         applyState(msg.state);
       } else if (msg.type === 'jump'){
-        showItem(msg.index);
+        jumpToId(msg.id);
+      } else if (msg.type === 'seek'){
+        if (currentVideoEl && typeof msg.time === 'number'){
+          try { currentVideoEl.currentTime = Math.max(0, msg.time); } catch(e){}
+        }
+      } else if (msg.type === 'playback'){
+        if (currentVideoEl){
+          try {
+            if (msg.action === 'pause') currentVideoEl.pause();
+            if (msg.action === 'play') currentVideoEl.play();
+          } catch(e){}
+        }
       } else if (msg.type === 'audio-skip'){
         handleAudioSkip(msg.direction);
       }
@@ -390,10 +473,10 @@
     try {
       const res = await fetch('/api/state');
       const fresh = await res.json();
-      const changedCount = fresh.playlist.length !== state.playlist.length;
+      const changedPlaylist = JSON.stringify(fresh.playlist) !== JSON.stringify(state.playlist);
       const changedAudio = JSON.stringify(fresh.audio) !== JSON.stringify(state.audio);
-      if (changedCount || changedAudio) applyState(fresh);
-      else state = fresh; // mantém durações/ordem atualizadas silenciosamente
+      if (changedPlaylist || changedAudio) applyState(fresh);
+      else state = fresh;
     } catch (e) { /* ignora falha pontual */ }
   }
   setInterval(pollFallback, 8000);
@@ -404,7 +487,8 @@
       const res = await fetch('/api/state');
       const initial = await res.json();
       state = initial;
-      if (!showEmptyIfNeeded()) showItem(0);
+      if (!showEmptyIfNeeded()) showNext(null);
+      audioIndicator.classList.toggle('on', !!(state.audio && state.audio.enabled));
       applyAudioState(state.audio);
     } catch (e) {
       showEmptyIfNeeded();

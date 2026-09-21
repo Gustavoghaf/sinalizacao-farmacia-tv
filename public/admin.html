@@ -37,22 +37,13 @@
     margin-bottom: 22px;
   }
   header .cross{
-  width:150px;
-  height:55px;
-  flex-shrink:0;
-  background:transparent;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-header .cross img{
-  width:100%;
-  height:100%;
-  object-fit:contain;
-  display:block;
-}
-
+    width:44px; height:44px; flex-shrink:0;
+    background: var(--vermelho);
+    color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:12px;
+    font-size:24px; font-weight:800;
+  }
   header h1{
     font-family:'Poppins', sans-serif;
     font-size:20px;
@@ -119,6 +110,8 @@ header .cross img{
   .btn-ghost:hover{ background:#dde9fb; }
   .btn-danger{ background: var(--vermelho-claro); color: var(--vermelho); }
   .btn-danger:hover{ background:#fbd9dd; }
+  .btn-muted{ background: var(--cinza); color: var(--texto-suave); }
+  .btn-muted:hover{ background:#e2e8f2; }
   .btn-icon{ padding:8px 10px; }
   .btn:disabled{ opacity:.5; cursor:not-allowed; }
   .btn-block{ width:100%; justify-content:center; }
@@ -130,19 +123,50 @@ header .cross img{
     border:1px solid var(--borda);
     border-radius:12px;
     background:#fbfcfe;
+    transition: opacity .15s;
   }
-  .item .badge{
-    width:34px; height:34px; flex-shrink:0;
+  .item.item-hidden{ opacity:0.5; }
+
+  .thumb{
+    width:60px; height:44px; flex-shrink:0;
     border-radius:9px;
-    display:flex; align-items:center; justify-content:center;
-    font-size:15px; font-weight:700; color:#fff;
+    overflow:hidden;
+    position:relative;
+    background:#0a1526;
   }
-  .item .badge.video{ background: var(--azul); }
-  .item .badge.image{ background: var(--vermelho); }
+  .thumb img,
+  .thumb video{
+    width:100%; height:100%;
+    object-fit:cover;
+    display:block;
+  }
+  .thumb .type-badge{
+    position:absolute; bottom:3px; right:3px;
+    width:16px; height:16px;
+    border-radius:5px;
+    background:rgba(0,0,0,.65);
+    color:#fff;
+    font-size:9px;
+    display:flex; align-items:center; justify-content:center;
+  }
+
   .item .info{ flex:1; min-width:0; }
-  .item .info .name{
+  .item .info .name-input{
+    display:block;
+    width:100%;
     font-size:13px; font-weight:600; color:var(--texto);
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    font-family:'Inter', sans-serif;
+    border:1px solid transparent;
+    background:transparent;
+    border-radius:6px;
+    padding:3px 5px;
+    margin:-3px -5px;
+  }
+  .item .info .name-input:hover{ background:var(--cinza); }
+  .item .info .name-input:focus{
+    background:#fff;
+    border-color: var(--azul);
+    outline:none;
   }
   .item .info .meta{ font-size:12px; color:var(--texto-suave); margin-top:2px; }
   .item .duration-input{
@@ -201,7 +225,7 @@ header .cross img{
     font-size:14px;
     margin-bottom:10px;
   }
-  .skip-row{ display:flex; gap:10px; }
+  .skip-row{ display:flex; gap:10px; margin-bottom:0; }
   .skip-row .btn{ flex:1; }
 
   .toast{
@@ -214,15 +238,53 @@ header .cross img{
     z-index:100;
   }
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(-6px); }
+
+  /* telas conectadas */
+  #displays-list{ display:flex; flex-direction:column; gap:10px; }
+  #empty-displays{ text-align:center; padding: 24px 10px; color: var(--texto-suave); font-size:13px; }
+
+  .display-row{
+    border:1px solid var(--borda);
+    border-radius:12px;
+    background:#fbfcfe;
+    padding:12px;
+  }
+  .display-row.offline{ opacity:0.6; }
+
+  .dr-header{
+    display:flex; align-items:center; gap:8px;
+    margin-bottom:10px;
+  }
+  .conn-badge{ width:9px; height:9px; border-radius:50%; background:#9fb0c9; flex-shrink:0; }
+  .conn-badge.online{ background:var(--verde); }
+  .conn-badge.offline{ background:#c6d2e3; }
+  .dr-label{ font-size:13px; font-weight:700; color:var(--texto); }
+  .dr-lastseen{ font-size:11px; color:var(--texto-suave); flex:1; }
+  .dr-header-actions{ display:flex; gap:4px; }
+
+  .dr-media{ display:flex; align-items:center; gap:10px; }
+  .dr-media-empty{
+    font-size:12px; color:var(--texto-suave);
+    padding:8px 4px;
+  }
+  .dr-media-info{ flex:1; min-width:0; }
+  .dr-media-info .name{
+    font-size:12px; font-weight:600; color:var(--texto);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    margin-bottom:4px;
+  }
+  .dr-media-info .meta{ font-size:11px; color:var(--texto-suave); }
+
+  .seek-row{ display:flex; align-items:center; gap:6px; margin-bottom:4px; }
+  .seek-row .btn-icon{ padding:6px 8px; font-size:12px; flex-shrink:0; }
+  .seek-slider{ flex:1; min-width:0; accent-color: var(--azul); }
 </style>
 </head>
 <body>
 
 <div class="wrap">
   <header>
-    <div class="cross">
-       <img src="LOGO.jpg" alt="Logo Drogaria">
-    </div>
+    <div class="cross">✚</div>
     <div>
       <h1>Painel de Controle</h1>
       <p>Sinalização digital da farmácia</p>
@@ -231,10 +293,17 @@ header .cross img{
 
   <div class="panel">
     <h2>Endereços da rede</h2>
-  <!--  <p class="desc">Abra o primeiro endereço no navegador da TV.</p>-->
+    <p class="desc">Abra o primeiro endereço no navegador da TV. Este painel também funciona no celular, usando o segundo endereço.</p>
     <div class="net-row"><span class="dot" id="ws-dot"></span> <span>Conexão em tempo real: <strong id="ws-status">conectando...</strong></span></div>
     <div class="net-row">📺 Tela da TV: <strong id="tv-url">carregando...</strong></div>
     <div class="net-row">📱 Este painel (PC/celular): <strong id="admin-url">carregando...</strong></div>
+  </div>
+
+  <div class="panel">
+    <h2>Telas conectadas</h2>
+    <p class="desc">Veja o que cada TV está exibindo agora. Em vídeos, dá pra ver a posição em tempo real e adiantar, voltar ou pausar.</p>
+    <div id="displays-list"></div>
+    <div id="empty-displays">Nenhuma tela conectada ainda. Abra a tela de exibição numa TV pra ela aparecer aqui.</div>
   </div>
 
   <div class="panel">
@@ -250,14 +319,14 @@ header .cross img{
 
   <div class="panel">
     <h2>Ordem de exibição das ofertas</h2>
-    <p class="desc">Use as setas para reordenar, ajuste o tempo das imagens e toque em "Exibir agora" para trocar na hora.</p>
+    <p class="desc">Use as setas para reordenar, ajuste o tempo das imagens, esconda temporariamente com o ícone de olho 👁 (sem excluir) e use "Exibir agora" para trocar na hora.</p>
     <div id="playlist-list"></div>
     <div id="empty-playlist">Nenhuma oferta cadastrada ainda. Envie um arquivo acima.</div>
   </div>
 
   <div class="panel">
     <h2>Música de fundo (YouTube)</h2>
-  <!--  <p class="desc">Toca por cima das ofertas, sem parar a exibição. O som sai pela TV e vai direto pra caixa de som já pareada por Bluetooth.</p> -->
+    <p class="desc">Toca por cima das ofertas na TV, sem parar a exibição. O som sai pela TV e vai direto pra caixa de som já pareada por Bluetooth.</p>
 
     <div class="audio-status-row">
       <div>
@@ -273,7 +342,6 @@ header .cross img{
     <div id="youtube-panel">
       <input type="text" id="youtube-input" placeholder="Cole aqui o link da playlist (ou de um vídeo) do YouTube">
       <button class="btn btn-primary btn-block" id="btn-save-youtube">Salvar e tocar na TV</button>
-
       <div class="skip-row" style="margin-top:12px;">
         <button class="btn btn-ghost" id="btn-prev">⏮ Anterior</button>
         <button class="btn btn-ghost" id="btn-next">Próxima ⏭</button>
@@ -298,6 +366,8 @@ header .cross img{
     uploadStatus: document.getElementById('upload-status'),
     playlistList: document.getElementById('playlist-list'),
     emptyPlaylist: document.getElementById('empty-playlist'),
+    displaysList: document.getElementById('displays-list'),
+    emptyDisplays: document.getElementById('empty-displays'),
     audioToggle: document.getElementById('audio-toggle'),
     audioStatusText: document.getElementById('audio-status-text'),
     audioStatusSub: document.getElementById('audio-status-sub'),
@@ -327,30 +397,37 @@ header .cross img{
     }
   }
 
+  // ==================== Render ====================
   function render(){
     els.emptyPlaylist.style.display = state.playlist.length ? 'none' : 'block';
     els.playlistList.innerHTML = '';
 
     state.playlist.forEach((item, i) => {
+      const visible = item.enabled !== false;
       const row = document.createElement('div');
-      row.className = 'item';
+      row.className = 'item' + (visible ? '' : ' item-hidden');
 
       const durationField = item.type === 'image'
         ? `<input type="number" class="duration-input" min="1" value="${Math.round((item.duration || 8000)/1000)}" data-id="${item.id}" title="segundos de exibição"> s`
         : `<span class="meta" style="width:64px;text-align:center;">auto</span>`;
+
+      const thumb = item.type === 'video'
+        ? `<div class="thumb"><video src="/media/${item.filename}#t=0.2" preload="metadata" muted playsinline></video><span class="type-badge">▶</span></div>`
+        : `<div class="thumb"><img src="/media/${item.filename}" loading="lazy"><span class="type-badge">🖼</span></div>`;
 
       row.innerHTML = `
         <div class="reorder">
           <button data-action="up" data-id="${item.id}" ${i === 0 ? 'disabled' : ''}>▲</button>
           <button data-action="down" data-id="${item.id}" ${i === state.playlist.length - 1 ? 'disabled' : ''}>▼</button>
         </div>
-        <div class="badge ${item.type}">${item.type === 'video' ? '▶' : '🖼'}</div>
+        ${thumb}
         <div class="info">
-          <div class="name">${escapeHtml(item.filename)}</div>
-          <div class="meta">${item.type === 'video' ? 'Vídeo' : 'Imagem'}</div>
+          <input type="text" class="name-input" data-id="${item.id}" value="${escapeHtml(item.name || item.filename)}" title="Renomear esta oferta">
+          <div class="meta">${item.type === 'video' ? 'Vídeo' : 'Imagem'}${visible ? '' : ' · oculto'} · ${escapeHtml(item.filename)}</div>
         </div>
         ${durationField}
         <div class="actions">
+          <button class="btn btn-icon ${visible ? 'btn-ghost' : 'btn-muted'}" data-action="toggle-visible" data-id="${item.id}" title="${visible ? 'Ocultar da TV' : 'Voltar a exibir na TV'}">${visible ? '👁' : '🚫'}</button>
           <button class="btn btn-ghost btn-icon" data-action="jump" data-id="${item.id}" title="Exibir agora">⏵</button>
           <button class="btn btn-danger btn-icon" data-action="delete" data-id="${item.id}" title="Excluir">🗑</button>
         </div>
@@ -378,6 +455,13 @@ header .cross img{
     return String(str).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
+  // ==================== Ações da playlist de ofertas ====================
+  els.playlistList.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' && ev.target.classList.contains('name-input')){
+      ev.target.blur();
+    }
+  });
+
   els.playlistList.addEventListener('click', async (ev) => {
     const btn = ev.target.closest('button[data-action]');
     if (!btn) return;
@@ -398,6 +482,20 @@ header .cross img{
       });
     }
 
+    if (action === 'toggle-visible'){
+      const item = state.playlist.find((i) => i.id === id);
+      if (!item) return;
+      const newEnabled = item.enabled === false;
+      item.enabled = newEnabled;
+      render();
+      await fetch(`/api/item/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: newEnabled }),
+      });
+      showToast(newEnabled ? 'Oferta voltou a aparecer na TV' : 'Oferta ocultada da TV');
+    }
+
     if (action === 'jump'){
       await fetch('/api/jump', {
         method: 'POST',
@@ -415,18 +513,39 @@ header .cross img{
   });
 
   els.playlistList.addEventListener('change', async (ev) => {
-    const input = ev.target.closest('.duration-input');
-    if (!input) return;
-    const seconds = parseFloat(input.value);
-    if (!seconds || seconds < 1) return;
-    await fetch(`/api/item/${input.dataset.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ duration: Math.round(seconds * 1000) }),
-    });
-    showToast('Tempo atualizado');
+    const durationInput = ev.target.closest('.duration-input');
+    if (durationInput){
+      const seconds = parseFloat(durationInput.value);
+      if (!seconds || seconds < 1) return;
+      await fetch(`/api/item/${durationInput.dataset.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ duration: Math.round(seconds * 1000) }),
+      });
+      showToast('Tempo atualizado');
+      return;
+    }
+
+    const nameInput = ev.target.closest('.name-input');
+    if (nameInput){
+      const name = nameInput.value.trim();
+      if (!name){
+        const item = state.playlist.find((i) => i.id === nameInput.dataset.id);
+        nameInput.value = item ? (item.name || item.filename) : '';
+        return;
+      }
+      const item = state.playlist.find((i) => i.id === nameInput.dataset.id);
+      if (item) item.name = name;
+      await fetch(`/api/item/${nameInput.dataset.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      showToast('Nome atualizado');
+    }
   });
 
+  // ==================== Upload ====================
   function pickFiles(){ els.fileInput.click(); }
   els.btnPick.addEventListener('click', pickFiles);
   els.dropzone.addEventListener('click', (ev) => { if (ev.target === els.dropzone) pickFiles(); });
@@ -461,6 +580,7 @@ header .cross img{
     }
   }
 
+  // ==================== Controles de música (o áudio toca na TV) ====================
   function extractYoutubeId(raw){
     const value = raw.trim();
     try {
@@ -486,7 +606,7 @@ header .cross img{
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ enabled }),
     });
-    showToast(enabled ? 'Música ligada na TV' : 'Música desligada na TV');
+    showToast(enabled ? 'Música ligada' : 'Música desligada');
   });
 
   els.btnSaveYoutube.addEventListener('click', async () => {
@@ -498,7 +618,7 @@ header .cross img{
       body: JSON.stringify({ enabled: true, youtubePlaylistId: id }),
     });
     els.youtubeInput.value = '';
-    showToast('Playlist salva e tocando na TV');
+    showToast('Playlist salva');
   });
 
   els.btnPrev.addEventListener('click', () => {
@@ -516,6 +636,216 @@ header .cross img{
     });
   });
 
+  // ==================== Telas conectadas ====================
+  let displaysData = [];
+  let displaysReceivedAt = {}; // id -> Date.now() de quando recebemos esse status
+  let draggingDisplayId = null;
+
+  function formatTime(s){
+    if (!isFinite(s) || s < 0) s = 0;
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${String(sec).padStart(2,'0')}`;
+  }
+
+  function estimateCurrentTime(d){
+    if (!d.status || d.status.kind !== 'video') return null;
+    const base = d.status.currentTime || 0;
+    if (d.status.paused) return base;
+    const elapsed = (Date.now() - (displaysReceivedAt[d.id] || Date.now())) / 1000;
+    const dur = d.status.duration || 0;
+    return dur ? Math.min(base + elapsed, dur) : base + elapsed;
+  }
+
+  function buildDisplayRowHtml(d){
+    const lastSeenTxt = d.connected
+      ? 'Online agora'
+      : (d.lastSeen ? `Offline · visto há ${Math.max(0, Math.round((Date.now() - d.lastSeen)/1000))}s` : 'Offline');
+
+    let mediaHtml = '<div class="dr-media-empty">Nada em exibição</div>';
+
+    if (d.status && d.status.kind === 'image'){
+      mediaHtml = `
+        <div class="dr-media">
+          <div class="thumb"><img src="/media/${d.status.filename}" loading="lazy"><span class="type-badge">🖼</span></div>
+          <div class="dr-media-info"><div class="name">${escapeHtml(d.status.name || d.status.filename)}</div><div class="meta">Imagem</div></div>
+        </div>`;
+    } else if (d.status && d.status.kind === 'video'){
+      const cur = estimateCurrentTime(d) ?? 0;
+      const dur = d.status.duration || 0;
+      mediaHtml = `
+        <div class="dr-media">
+          <div class="thumb"><video src="/media/${d.status.filename}#t=0.2" preload="metadata" muted playsinline></video><span class="type-badge">▶</span></div>
+          <div class="dr-media-info">
+            <div class="name">${escapeHtml(d.status.name || d.status.filename)}</div>
+            <div class="seek-row">
+              <button class="btn btn-ghost btn-icon" data-action="toggle-play" data-id="${d.id}" title="${d.status.paused ? 'Retomar' : 'Pausar'}">${d.status.paused ? '▶' : '⏸'}</button>
+              <button class="btn btn-ghost btn-icon" data-action="seek-back" data-id="${d.id}" title="Voltar 10s">⏪</button>
+              <input type="range" class="seek-slider" data-id="${d.id}" min="0" max="${dur || 1}" step="0.5" value="${cur}">
+              <button class="btn btn-ghost btn-icon" data-action="seek-fwd" data-id="${d.id}" title="Avançar 10s">⏩</button>
+            </div>
+            <div class="meta"><span class="seek-time-current">${formatTime(cur)}</span> / ${formatTime(dur)}</div>
+          </div>
+        </div>`;
+    } else if (d.status && d.status.kind === 'empty'){
+      mediaHtml = '<div class="dr-media-empty">Sem ofertas cadastradas nessa TV</div>';
+    }
+
+    return `
+      <div class="dr-header">
+        <span class="conn-badge ${d.connected ? 'online' : 'offline'}"></span>
+        <span class="dr-label">${escapeHtml(d.label || 'TV sem nome')}</span>
+        <span class="dr-lastseen">${lastSeenTxt}</span>
+        <div class="dr-header-actions">
+          <button class="btn btn-muted btn-icon" data-action="rename" data-id="${d.id}" title="Renomear">✏️</button>
+          ${d.connected ? '' : `<button class="btn btn-danger btn-icon" data-action="remove" data-id="${d.id}" title="Remover">🗑</button>`}
+        </div>
+      </div>
+      ${mediaHtml}
+    `;
+  }
+
+  function renderDisplays(){
+    els.emptyDisplays.style.display = displaysData.length ? 'none' : 'block';
+    const seenIds = new Set(displaysData.map((d) => d.id));
+
+    displaysData.forEach((d) => {
+      if (d.id === draggingDisplayId) return; // não interrompe quem está arrastando o controle
+
+      let row = els.displaysList.querySelector(`[data-display-row="${d.id}"]`);
+      if (!row){
+        row = document.createElement('div');
+        row.dataset.displayRow = d.id;
+        els.displaysList.appendChild(row);
+      }
+      row.className = 'display-row' + (d.connected ? '' : ' offline');
+
+      // só recria a miniatura/estrutura quando o item (ou nome/rótulo) realmente muda;
+      // caso contrário, atualiza só os textos/slider no lugar, sem recarregar vídeo/imagem
+      const signature = [d.label, d.status && d.status.kind, d.status && d.status.filename, d.status && d.status.name].join('|');
+      if (row.dataset.signature !== signature){
+        row.dataset.signature = signature;
+        row.innerHTML = buildDisplayRowHtml(d);
+      } else {
+        const lastSeenEl = row.querySelector('.dr-lastseen');
+        if (lastSeenEl){
+          lastSeenEl.textContent = d.connected
+            ? 'Online agora'
+            : (d.lastSeen ? `Offline · visto há ${Math.max(0, Math.round((Date.now() - d.lastSeen)/1000))}s` : 'Offline');
+        }
+        const badgeEl = row.querySelector('.conn-badge');
+        if (badgeEl) badgeEl.className = 'conn-badge ' + (d.connected ? 'online' : 'offline');
+
+        const playBtn = row.querySelector('[data-action="toggle-play"]');
+        if (playBtn && d.status){
+          playBtn.textContent = d.status.paused ? '▶' : '⏸';
+          playBtn.title = d.status.paused ? 'Retomar' : 'Pausar';
+        }
+
+        if (d.status && d.status.kind === 'video'){
+          const cur = estimateCurrentTime(d) ?? 0;
+          const slider = row.querySelector('.seek-slider');
+          const label = row.querySelector('.seek-time-current');
+          if (slider) slider.value = cur;
+          if (label) label.textContent = formatTime(cur);
+        }
+      }
+    });
+
+    Array.from(els.displaysList.children).forEach((row) => {
+      if (!seenIds.has(row.dataset.displayRow)) row.remove();
+    });
+  }
+
+  function updateDisplaysData(list){
+    const now = Date.now();
+    list.forEach((d) => { displaysReceivedAt[d.id] = now; });
+    displaysData = list;
+    renderDisplays();
+  }
+
+  // recalcula a posição estimada dos vídeos a cada meio segundo, pra a barra
+  // avançar suavemente entre uma atualização e outra da TV — sem recriar as
+  // miniaturas (por isso renderDisplays só atualiza o que muda de verdade)
+  setInterval(renderDisplays, 500);
+
+  els.displaysList.addEventListener('mousedown', (e) => {
+    if (e.target.matches('.seek-slider')) draggingDisplayId = e.target.dataset.id;
+  });
+  els.displaysList.addEventListener('touchstart', (e) => {
+    if (e.target.matches('.seek-slider')) draggingDisplayId = e.target.dataset.id;
+  });
+
+  els.displaysList.addEventListener('input', (e) => {
+    if (e.target.matches('.seek-slider')){
+      const row = e.target.closest('[data-display-row]');
+      const label = row && row.querySelector('.seek-time-current');
+      if (label) label.textContent = formatTime(parseFloat(e.target.value));
+    }
+  });
+
+  els.displaysList.addEventListener('change', async (e) => {
+    if (e.target.matches('.seek-slider')){
+      const id = e.target.dataset.id;
+      const time = parseFloat(e.target.value);
+      draggingDisplayId = null;
+      await fetch(`/api/displays/${id}/seek`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ time }),
+      });
+    }
+  });
+
+  els.displaysList.addEventListener('click', async (ev) => {
+    const btn = ev.target.closest('button[data-action]');
+    if (!btn) return;
+    const { action, id } = btn.dataset;
+    const d = displaysData.find((x) => x.id === id);
+
+    if (action === 'rename'){
+      const novo = prompt('Nome da tela:', d ? d.label : '');
+      if (novo && novo.trim()){
+        await fetch(`/api/displays/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ label: novo.trim() }),
+        });
+      }
+    }
+
+    if (action === 'remove'){
+      if (!confirm('Remover esta tela da lista?')) return;
+      const res = await fetch(`/api/displays/${id}`, { method: 'DELETE' });
+      if (!res.ok){
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || 'Não foi possível remover');
+      }
+    }
+
+    if ((action === 'seek-back' || action === 'seek-fwd') && d && d.status && d.status.kind === 'video'){
+      const base = estimateCurrentTime(d) ?? 0;
+      const dur = d.status.duration || 0;
+      const delta = action === 'seek-back' ? -10 : 10;
+      const newTime = Math.max(0, dur ? Math.min(base + delta, dur) : base + delta);
+      await fetch(`/api/displays/${id}/seek`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ time: newTime }),
+      });
+    }
+
+    if (action === 'toggle-play' && d && d.status && d.status.kind === 'video'){
+      const nextAction = d.status.paused ? 'play' : 'pause';
+      await fetch(`/api/displays/${id}/playback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: nextAction }),
+      });
+    }
+  });
+
+  // ==================== WebSocket (mantém o painel sincronizado) ====================
   function connectWS(){
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const ws = new WebSocket(`${proto}://${location.host}/ws`);
@@ -533,17 +863,27 @@ header .cross img{
     ws.addEventListener('message', (ev) => {
       try {
         const msg = JSON.parse(ev.data);
-        if (msg.type === 'state'){ state = msg.state; render(); }
+        if (msg.type === 'state'){
+          state = msg.state;
+          render();
+        } else if (msg.type === 'displays'){
+          updateDisplaysData(msg.displays);
+        }
       } catch (e) {}
     });
   }
 
+  // ==================== Inicialização ====================
   (async function init(){
     loadNetworkInfo();
     try {
       const res = await fetch('/api/state');
       state = await res.json();
       render();
+    } catch (e) {}
+    try {
+      const res = await fetch('/api/displays');
+      updateDisplaysData(await res.json());
     } catch (e) {}
     connectWS();
   })();

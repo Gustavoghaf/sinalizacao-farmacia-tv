@@ -17,6 +17,7 @@ const ROOT = __dirname;
 const MEDIA_DIR = path.join(ROOT, 'media');
 const DATA_DIR = path.join(ROOT, 'data');
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
+const DISPLAYS_FILE = path.join(DATA_DIR, 'displays.json');
 
 // -------------------- Preparação de pastas --------------------
 for (const dir of [MEDIA_DIR, DATA_DIR]) {
@@ -39,11 +40,18 @@ function loadState() {
   try {
     const raw = fs.readFileSync(STATE_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
-    return {
+    const merged = {
       ...DEFAULT_STATE,
       ...parsed,
       audio: { ...DEFAULT_STATE.audio, ...(parsed.audio || {}) },
     };
+    // migração: itens salvos antes de existir o campo "enabled"/"name" ganham valores padrão
+    merged.playlist = (merged.playlist || []).map((item) => ({
+      ...item,
+      enabled: item.enabled !== false,
+      name: item.name || item.filename,
+    }));
+    return merged;
   } catch (err) {
     return { ...DEFAULT_STATE, audio: { ...DEFAULT_STATE.audio } };
   }
@@ -54,6 +62,35 @@ function saveState() {
 }
 
 let state = loadState();
+
+// -------------------- Telas conectadas (displays) --------------------
+// Cada tela (TV) que abre display.html se identifica com um id próprio e
+// manda atualizações periódicas do que está exibindo. Isso fica só em
+// memória (reseta quando o servidor reinicia — as telas se registram de
+// novo sozinhas), exceto o nome que a farmácia dá a cada tela, que é
+// salvo em disco pra não se perder.
+function loadDisplayLabels() {
+  try {
+    return JSON.parse(fs.readFileSync(DISPLAYS_FILE, 'utf-8'));
+  } catch (err) {
+    return {};
+  }
+}
+function saveDisplayLabels() {
+  fs.writeFileSync(DISPLAYS_FILE, JSON.stringify(displayLabels, null, 2), 'utf-8');
+}
+let displayLabels = loadDisplayLabels(); // { [displayId]: label }
+const displays = new Map(); // displayId -> { id, label, connected, lastSeen, status }
+
+function displaysList() {
+  return Array.from(displays.values()).map((d) => ({
+    id: d.id,
+    label: d.label,
+    connected: d.connected,
+    lastSeen: d.lastSeen,
+    status: d.status,
+  }));
+}
 
 // -------------------- App / servidor HTTP --------------------
 const app = express();
@@ -99,8 +136,71 @@ function broadcast(message) {
   });
 }
 
+function broadcastDisplays() {
+  broadcast({ type: 'displays', displays: displaysList() });
+}
+
+// Manda uma mensagem só pra uma tela específica (usado pra avançar/voltar/pausar vídeo)
+function sendToDisplay(displayId, message) {
+  const payload = JSON.stringify(message);
+  let found = false;
+  wss.clients.forEach((client) => {
+    if (client.readyState === 1 && client.displayId === displayId) {
+      client.send(payload);
+      found = true;
+    }
+  });
+  return found;
+}
+
 wss.on('connection', (ws) => {
   ws.send(JSON.stringify({ type: 'state', state }));
+  ws.send(JSON.stringify({ type: 'displays', displays: displaysList() }));
+  ws.isDisplay = false;
+  ws.displayId = null;
+
+  ws.on('message', (raw) => {
+    let msg;
+    try {
+      msg = JSON.parse(raw.toString());
+    } catch (err) {
+      return;
+    }
+
+    if (msg.type === 'register-display' && typeof msg.displayId === 'string') {
+      ws.isDisplay = true;
+      ws.displayId = msg.displayId;
+      const existing = displays.get(msg.displayId);
+      displays.set(msg.displayId, {
+        id: msg.displayId,
+        label: displayLabels[msg.displayId] || (existing && existing.label) || `TV ${displays.size + 1}`,
+        connected: true,
+        lastSeen: Date.now(),
+        status: existing ? existing.status : null,
+      });
+      broadcastDisplays();
+    } else if (msg.type === 'display-status' && ws.displayId) {
+      const d = displays.get(ws.displayId);
+      if (d) {
+        d.status = msg.status;
+        d.lastSeen = Date.now();
+        d.connected = true;
+        broadcastDisplays();
+      }
+    }
+  });
+
+  ws.on('close', () => {
+    if (ws.displayId) {
+      const d = displays.get(ws.displayId);
+      if (d) {
+        d.connected = false;
+        d.lastSeen = Date.now();
+        broadcastDisplays();
+      }
+    }
+  });
+
   ws.on('error', () => {});
 });
 
@@ -134,11 +234,14 @@ app.post('/api/upload', upload.array('arquivos', 20), (req, res) => {
   const novosItens = req.files.map((file) => {
     const ext = path.extname(file.filename).toLowerCase();
     const type = ALLOWED_VIDEO.has(ext) ? 'video' : 'image';
+    const originalBase = path.basename(file.originalname, path.extname(file.originalname));
     return {
       id: crypto.randomUUID(),
       type,
       filename: file.filename,
+      name: originalBase || file.filename,
       duration: type === 'image' ? 8000 : null,
+      enabled: true,
     };
   });
 
@@ -174,6 +277,12 @@ app.put('/api/item/:id', (req, res) => {
   if (typeof req.body.duration === 'number' && req.body.duration >= 1000) {
     item.duration = Math.round(req.body.duration);
   }
+  if (typeof req.body.enabled === 'boolean') {
+    item.enabled = req.body.enabled;
+  }
+  if (typeof req.body.name === 'string' && req.body.name.trim()) {
+    item.name = req.body.name.trim().slice(0, 80);
+  }
   saveState();
   broadcast({ type: 'state', state });
   res.json({ ok: true, item });
@@ -196,10 +305,10 @@ app.delete('/api/item/:id', (req, res) => {
 // Trocar agora mesmo qual oferta está sendo exibida na TV
 app.post('/api/jump', (req, res) => {
   const { id } = req.body;
-  const index = state.playlist.findIndex((i) => i.id === id);
-  if (index === -1) return res.status(404).json({ error: 'Item não encontrado.' });
+  const exists = state.playlist.some((i) => i.id === id);
+  if (!exists) return res.status(404).json({ error: 'Item não encontrado.' });
 
-  broadcast({ type: 'jump', index });
+  broadcast({ type: 'jump', id });
   res.json({ ok: true });
 });
 
@@ -223,6 +332,63 @@ app.post('/api/audio/skip', (req, res) => {
     return res.status(400).json({ error: 'Direção inválida.' });
   }
   broadcast({ type: 'audio-skip', direction });
+  res.json({ ok: true });
+});
+
+// -------------------- Rotas das telas conectadas --------------------
+
+// Lista todas as telas já vistas (conectadas ou não)
+app.get('/api/displays', (req, res) => {
+  res.json(displaysList());
+});
+
+// Renomear uma tela (ex: "TV Balcão", "TV Vitrine")
+app.put('/api/displays/:id', (req, res) => {
+  const { label } = req.body;
+  if (typeof label !== 'string' || !label.trim()) {
+    return res.status(400).json({ error: 'Nome inválido.' });
+  }
+  const trimmed = label.trim().slice(0, 40);
+  displayLabels[req.params.id] = trimmed;
+  saveDisplayLabels();
+  const d = displays.get(req.params.id);
+  if (d) d.label = trimmed;
+  broadcastDisplays();
+  res.json({ ok: true, label: trimmed });
+});
+
+// Remove uma tela da lista (só permite se ela não estiver mais conectada)
+app.delete('/api/displays/:id', (req, res) => {
+  const d = displays.get(req.params.id);
+  if (d && d.connected) {
+    return res.status(400).json({ error: 'Essa tela ainda está conectada.' });
+  }
+  displays.delete(req.params.id);
+  delete displayLabels[req.params.id];
+  saveDisplayLabels();
+  broadcastDisplays();
+  res.json({ ok: true });
+});
+
+// Pula pra um instante específico do vídeo que está tocando numa tela
+app.post('/api/displays/:id/seek', (req, res) => {
+  const { time } = req.body;
+  if (typeof time !== 'number' || time < 0) {
+    return res.status(400).json({ error: 'Tempo inválido.' });
+  }
+  const sent = sendToDisplay(req.params.id, { type: 'seek', time });
+  if (!sent) return res.status(404).json({ error: 'Tela não está conectada agora.' });
+  res.json({ ok: true });
+});
+
+// Pausa ou retoma o vídeo que está tocando numa tela
+app.post('/api/displays/:id/playback', (req, res) => {
+  const { action } = req.body;
+  if (!['play', 'pause'].includes(action)) {
+    return res.status(400).json({ error: 'Ação inválida.' });
+  }
+  const sent = sendToDisplay(req.params.id, { type: 'playback', action });
+  if (!sent) return res.status(404).json({ error: 'Tela não está conectada agora.' });
   res.json({ ok: true });
 });
 
